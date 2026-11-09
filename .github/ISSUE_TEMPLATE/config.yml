@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Architecture Decision Records (ADR)
+    url: https://github.com/kwonjjinho/agentRules/tree/main/.agents/rules
+    about: Review our MSA and enterprise engineering standards before proposing architectural changes.

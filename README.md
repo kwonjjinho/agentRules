@@ -22,13 +22,21 @@ Google DeepMind **Antigravity (AGY)** 및 **Cursor** AI 에이전트와 완벽�
 │   │   ├── 07-docker-kubernetes.md
 │   │   ├── 08-github-actions-ci-cd.md
 │   │   ├── 09-git-commit-standards.md
-│   │   └── 10-github-pr-code-review.md
+│   │   ├── 10-github-pr-code-review.md
+│   │   └── 11-github-lifecycle-management.md
 │   └── skills/
-│       └── msa-workflow/SKILL.md      # Antigravity 전용 온디맨드 MSA 개발 스킬
+│       ├── msa-workflow/SKILL.md      # Antigravity 전용 온디맨드 MSA 개발 스킬
+│       └── github-automation/SKILL.md # GitHub 이슈 생성 및 풀사이클 관리 스킬
 ├── .cursor/
 │   └── rules/                         # Cursor 전용 규칙 파일 (.mdc, globs 매핑)
-└── .github/
-    └── pull_request_template.md       # GitHub 실무 PR 표준 템플릿
+├── .github/
+│   ├── ISSUE_TEMPLATE/                # GitHub 실무 표준 이슈 템플릿 세트
+│   │   ├── feature_request.md
+│   │   ├── bug_report.md
+│   │   ├── tech_debt.md
+│   │   └── config.yml
+│   └── pull_request_template.md       # GitHub 실무 PR 표준 템플릿
+└── mcp_config.json                    # GitHub MCP Server 설정 파일 (Model Context Protocol)
 ```
 
 ---

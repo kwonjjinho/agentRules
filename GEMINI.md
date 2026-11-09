@@ -64,3 +64,13 @@ Antigravity references the detailed domain rules located in `.agents/rules/`:
 9. [GitHub Actions CI/CD & GitOps Pipeline](.agents/rules/08-github-actions-ci-cd.md)
 10. [Git Commit Standards & Linear History](.agents/rules/09-git-commit-standards.md)
 11. [Pull Request & Code Review Culture](.agents/rules/10-github-pr-code-review.md)
+12. [GitHub Full Lifecycle Management & MCP](.agents/rules/11-github-lifecycle-management.md)
+
+---
+
+## 🤖 GitHub Automation via Model Context Protocol (MCP)
+
+Antigravity interacts with GitHub directly via `mcp_config.json` (`@modelcontextprotocol/server-github`):
+- **Issue Creation**: User requests are transformed into structured GitHub issues (`.github/ISSUE_TEMPLATE/`).
+- **Traceability**: Branches and PRs automatically bind to issue numbers (`feat/<issue-id>-<slug>`).
+- **Autonomous Review**: Antigravity automates PR creation, status check monitoring, and Conventional Comments code reviews.
