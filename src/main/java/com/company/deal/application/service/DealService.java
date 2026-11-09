@@ -6,12 +6,18 @@ import com.company.deal.adapter.in.web.dto.JoinDealRequest;
 import com.company.deal.application.port.in.DealCommandUseCase;
 import com.company.deal.application.port.in.DealQueryUseCase;
 import com.company.deal.domain.entity.Deal;
+import com.company.deal.domain.entity.DealOutboxEvent;
 import com.company.deal.domain.entity.DealParticipant;
+import com.company.deal.domain.event.CloudEventEnvelope;
+import com.company.deal.domain.event.DealAchievedEvent;
+import com.company.deal.domain.event.DealJoinedEvent;
 import com.company.deal.domain.exception.DealBusinessException;
 import com.company.deal.domain.exception.DealErrorCode;
 import com.company.deal.domain.model.DealStatus;
+import com.company.deal.domain.repository.DealOutboxEventRepository;
 import com.company.deal.domain.repository.DealParticipantRepository;
 import com.company.deal.domain.repository.DealRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -35,9 +41,11 @@ public class DealService implements DealCommandUseCase, DealQueryUseCase {
 
     private final DealRepository dealRepository;
     private final DealParticipantRepository dealParticipantRepository;
+    private final DealOutboxEventRepository outboxEventRepository;
     private final RedissonClient redissonClient;
     private final StringRedisTemplate redisTemplate;
     private final TransactionTemplate transactionTemplate;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -70,7 +78,7 @@ public class DealService implements DealCommandUseCase, DealQueryUseCase {
     }
 
     /**
-     * 초고동시성 Redisson 분산 락 기반 공구 참여 및 수량 차감
+     * 초고동시성 Redisson 분산 락 기반 공구 참여 및 Transactional Outbox 이벤트 저장
      */
     @Override
     public void joinDeal(String dealId, String userId, JoinDealRequest request) {
@@ -89,6 +97,7 @@ public class DealService implements DealCommandUseCase, DealQueryUseCase {
                 // 트랜잭션 범위가 분산 락 내부에서 완전히 커밋되도록 보장
                 transactionTemplate.executeWithoutResult(status -> {
                     Deal deal = findDealById(dealId);
+                    boolean wasAchievedBefore = deal.isTargetAchieved();
 
                     // 1. 도메인 수량 차감 및 상태 전이 검증 (불변식 검사)
                     deal.join(request.quantity());
@@ -104,11 +113,45 @@ public class DealService implements DealCommandUseCase, DealQueryUseCase {
                     );
                     dealParticipantRepository.save(participant);
 
+                    // 3. Transactional Outbox: 참여 이벤트 영속화
+                    saveOutboxEvent(
+                        "Deal",
+                        deal.getId(),
+                        "com.company.deal.joined",
+                        new DealJoinedEvent(
+                            participantId,
+                            deal.getId(),
+                            userId,
+                            request.quantity(),
+                            deal.getDealPrice(),
+                            participant.getTotalAmount(),
+                            Instant.now()
+                        )
+                    );
+
+                    // 4. 최소 목표 수량 최초 달성 시 DealAchievedEvent 영속화 (비동기 결제/주문 연동 트리거)
+                    if (!wasAchievedBefore && deal.isTargetAchieved()) {
+                        saveOutboxEvent(
+                            "Deal",
+                            deal.getId(),
+                            "com.company.deal.target-achieved",
+                            new DealAchievedEvent(
+                                deal.getId(),
+                                deal.getProductId(),
+                                deal.getCurrentQuantity(),
+                                deal.getTargetQuantity(),
+                                deal.getDealPrice(),
+                                Instant.now()
+                            )
+                        );
+                        log.info("🎉 공구 목표 수량 달성! Outbox 이벤트 발행 대기: dealId={}", deal.getId());
+                    }
+
                     log.info("공구 참여 성공: dealId={}, userId={}, qty={}, currentTotal={}/{}",
                         dealId, userId, request.quantity(), deal.getCurrentQuantity(), deal.getMaxCapacity());
                 });
 
-                // 3. Redis 캐시 무효화 (실시간 딜 데이터 갱신)
+                // 5. Redis 캐시 무효화 (실시간 딜 데이터 갱신)
                 evictDealCache(dealId);
 
             } finally {
@@ -163,6 +206,25 @@ public class DealService implements DealCommandUseCase, DealQueryUseCase {
     private void evictDealCache(String dealId) {
         String cacheKey = "deal:detail:" + dealId;
         redisTemplate.delete(cacheKey);
+    }
+
+    private <T> void saveOutboxEvent(String aggregateType, String aggregateId, String eventType, T data) {
+        try {
+            CloudEventEnvelope<T> envelope = CloudEventEnvelope.of(eventType, data);
+            String payloadJson = objectMapper.writeValueAsString(envelope);
+
+            DealOutboxEvent outboxEvent = new DealOutboxEvent(
+                UUID.randomUUID().toString(),
+                aggregateType,
+                aggregateId,
+                eventType,
+                payloadJson
+            );
+            outboxEventRepository.save(outboxEvent);
+        } catch (Exception e) {
+            log.error("Outbox 이벤트 JSON 직렬화 실패: eventType={}", eventType, e);
+            throw new RuntimeException("이벤트 직렬화 실패", e);
+        }
     }
 
     private DealResponse mapToResponse(Deal deal) {
