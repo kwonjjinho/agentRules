@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # 1. RDBMS: PostgreSQL 16 (딜 및 Outbox 이벤트 영속성)
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: msa-postgres
+    environment:
+      POSTGRES_DB: deal_db
+      POSTGRES_USER: deal_user
+      POSTGRES_PASSWORD: deal_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deal_user -d deal_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - msa-network
+
+  # ============================================================================
+  # 2. In-Memory: Redis 7 (Redisson 분산 락 & 실시간 캐시)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: msa-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - msa-network
+
+  # ============================================================================
+  # 3. Message Broker: Apache Kafka & Zookeeper (CloudEvents 1.0 EDA)
+  # ============================================================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: msa-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - msa-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: msa-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - msa-network
+
+  # ============================================================================
+  # 4. Backend: Deal Microservice (Spring Boot 3.x, Java 21)
+  # ============================================================================
+  deal-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: msa-deal-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/deal_db
+      SPRING_DATASOURCE_USERNAME: deal_user
+      SPRING_DATASOURCE_PASSWORD: deal_password
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    networks:
+      - msa-network
+
+  # ============================================================================
+  # 5. Frontend: Next.js 14/15 App Router & BFF
+  # ============================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: msa-frontend
+    depends_on:
+      - deal-service
+    ports:
+      - "3000:3000"
+    environment:
+      INTERNAL_GATEWAY_URL: http://deal-service:8080
+      NODE_ENV: production
+    networks:
+      - msa-network
+
+networks:
+  msa-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
