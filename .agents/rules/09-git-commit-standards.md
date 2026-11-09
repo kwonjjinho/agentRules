@@ -33,60 +33,39 @@ Every commit message must adhere to the Conventional Commits structure:
 Use lowercase service or module names for `<scope>`:
 - Service Scopes: `gateway`, `auth`, `order`, `payment`, `inventory`, `notification`
 - Frontend Scopes: `ui`, `web`, `cart`, `checkout`
-- Infrastructure Scopes: `kafka`, `redis`, `k8s`, `security`, `deps`
+- Infrastructure Scopes: `kafka`, `redis`, `k8s`, `security`, `deps`, `rules`
 
 ### Subject Line Rules (Strict)
 1. **Imperative Mood**: Use "add", "fix", "implement", "change" (NOT "added", "fixes", "implementing").
 2. **No Capitalization & No Period**: Start with a lowercase letter and never end with a period (`.`).
 3. **Character Limit**: Keep the subject under **50-72 characters**.
 
-### Examples
-```text
-feat(order): implement idempotent checkout with redis distributed lock
-
-Enforce distributed locking around stock deduction to eliminate
-race conditions during high-concurrency flash sales.
-
-Closes #142
-```
-
-```text
-fix(auth): prevent race condition during jwt refresh token rotation
-
-When multiple concurrent requests hit the refresh endpoint simultaneously,
-validate the sliding window token before invalidating family chain.
-
-Fixes #289
-```
-
-```text
-feat(kafka)!: migrate order-event schema to cloudevents 1.0
-
-BREAKING CHANGE: Event envelope format changed. Existing consumers must
-upgrade to event-schema-registry >= 2.1.0 before consuming this topic.
-```
-
 ---
 
-## 2. Atomic Commits & Git Hygiene
+## 2. Atomic Commits & Functional-Unit Granularity (Strictly Enforced)
 
+- **Functional-Unit Commit Granularity (기능 단위 분할 커밋)**:
+  - **Omnibus Bulk Commits Forbidden**: Never lump multiple layers, models, DTOs, services, and configs into a single giant commit.
+  - Divide work into incremental, testable, and reviewable functional units:
+    1. **DTO & Contract**: API Request/Response records, Validation constraints, ErrorCode enums.
+    2. **Domain & Persistence**: Pure domain entities, Value Objects, Outbox models, Repositories.
+    3. **Application & Service**: Use Cases, Service orchestration, Redis distributed caching/locking.
+    4. **Web & Docs**: Controller endpoints, OpenAPI `@Operation` / `@ApiResponse` annotations.
+    5. **Frontend / BFF**: Route Handlers, TanStack Query hooks, UI components.
 - **Single Responsibility (Atomic Commits)**:
-  - Each commit must represent one, and only one, logical change.
-  - Never mix automated refactoring/formatting (e.g., Prettier/Spotless) with actual business logic changes. Separate them into two distinct commits.
+  - Each commit represents one logical change.
+  - Never mix automated refactoring/formatting (e.g., Spotless/Prettier) with business logic.
 - **Clean Linear History**:
   - Keep history clean using `git rebase` against `main` before opening or updating a PR.
   - Avoid noisy merge commits (`Merge branch 'main' into feat/...`) in feature branches.
-- **Git Hook Enforcement (Husky / commitlint)**:
-  - Commit messages should be automatically validated at pre-commit / commit-msg hook stages using `@commitlint/config-conventional`.
 
 ---
 
-## 3. Branch Naming Strategy (Trunk-Based / GitHub Flow)
+## 3. Branching & PR Lifecycle (Trunk-Based / GitHub Flow)
 
-- Format: `<type>/<issue-number>-<short-description>` or `<type>/<short-description>`
-- Examples:
-  - `feat/102-order-saga-orchestrator`
-  - `fix/88-redis-lock-leak`
-  - `refactor/clean-hexagonal-ports`
-  - `perf/kafka-batch-consumer`
-- Lifespan: Branches must be short-lived (1 to 2 days maximum) to minimize merge friction.
+- **Dedicated Branching**:
+  - Always create a dedicated branch off latest `main`: `<type>/<issue-number>-<slug>` (e.g. `feat/42-member-credential-management`).
+  - Never commit directly to `main`.
+- **Push & Automated PR**:
+  - Push feature branch to origin: `git push -u origin <branch-name>`.
+  - Open a Pull Request using `.github/pull_request_template.md` with `Closes #<issue-number>`.

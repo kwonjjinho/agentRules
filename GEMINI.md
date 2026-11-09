@@ -21,9 +21,9 @@ This project is an enterprise-grade Microservices Architecture (MSA) platform bu
 
 ### 🚨 Mandatory Workflow: Issue -> Branch -> Commit -> PR (Strictly Enforced)
 - **Every change must start with an Issue**: No code, configuration, rule, or documentation change may be implemented without an active GitHub issue.
-- **Traceable Branching**: Never work directly on `main`. Always create a branch tied to the issue: `<type>/<issue-id>-<slug>` (e.g., `feat/42-change-password-api`).
-- **Atomic Conventional Commits**: Every commit must follow Conventional Commits and reference the issue number.
-- **Automated PR Lifecycle**: Open a PR using `.github/pull_request_template.md` with `Closes #<issue-id>` to ensure end-to-end traceability before merging.
+- **Traceable Branching**: Never work directly on `main`. Always create a dedicated branch tied to the issue: `<type>/<issue-id>-<slug>` (e.g., `feat/42-member-credential-management`).
+- **Functional-Unit Atomic Commits**: Break down all deliverables into fine-grained functional units (DTOs -> Domain -> Service -> Controller -> Frontend). Never combine unrelated layers into a single bulk commit.
+- **Automated PR Lifecycle**: Push the branch and open a PR using `.github/pull_request_template.md` with `Closes #<issue-id>` to ensure end-to-end traceability before merging.
 
 ### 1. Zero-Trust & Gateway Authentication
 - External traffic must always ingress through Spring Cloud Gateway.
