@@ -10,6 +10,10 @@ description: >-
 
 This skill enables the Antigravity agent to autonomously manage the complete GitHub project lifecycle, from initial issue triage to automated PR merging and release tagging.
 
+> [!IMPORTANT]
+> **Mandatory Rule**: Whenever the user requests any task (feature implementation, bug fix, rule refactoring, documentation update), the agent MUST proactively execute the full pipeline:
+> **1. Create Issue -> 2. Create Branch (`feat/<issue-id>-...`) -> 3. Implement & Commit -> 4. Open PR (`Closes #<issue-id>`)**
+
 ---
 
 ## 1. Issue Triage & Creation Workflow

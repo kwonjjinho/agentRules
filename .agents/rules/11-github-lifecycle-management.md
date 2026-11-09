@@ -6,6 +6,26 @@ alwaysApply: false
 
 # GitHub Full Lifecycle Management Rules
 
+## 🚨 MANDATORY LIFECYCLE: Issue -> Branch -> Commit -> Pull Request
+
+**EVERY change in this repository (code, configuration, rules, documentation, infrastructure) MUST strictly execute through the full 4-stage lifecycle without exception:**
+
+```mermaid
+flowchart LR
+    A["1. Create Issue\n(#<id>)"] --> B["2. Create Branch\n(feat/<id>-<slug>)"]
+    B --> C["3. Implement & Commit\n(feat(...): ... #<id>)"]
+    C --> D["4. Open PR\n(Closes #<id>)"]
+    D --> E["5. Squash & Merge\n(into main)"]
+```
+
+1. **Direct Commits to `main` are Strictly Forbidden**: The `main` branch is protected. All modifications must be submitted via Pull Requests.
+2. **Issue First (Issue-Driven Development)**: Before writing code or making file edits, create or identify an issue in GitHub (`.github/ISSUE_TEMPLATE/`).
+3. **Branch Binding**: Branch name must strictly bind to the issue: `<type>/<issue-number>-<slug>`.
+4. **Commit Association**: Every commit message must reference the issue number.
+5. **PR Automated Closure**: Every PR description must declare `Closes #<issue-number>` or `Fixes #<issue-number>`.
+
+---
+
 ## 1. Issue-Driven Development (IDD)
 
 - **Zero Untracked Changes**:

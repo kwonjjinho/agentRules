@@ -8,6 +8,22 @@ Google DeepMind **Antigravity (AGY)** 및 **Cursor** AI 에이전트와 완벽�
 
 ## 🧭 에이전트 호환성 구조 (Antigravity & Cursor)
 
+---
+
+## 🚨 필수 워크플로우: Issue -> Branch -> Commit -> Pull Request (전체 변경사항 의무화)
+
+모든 코드, 설정, 규칙, 문서의 변경사항은 예외 없이 아래 5단계 라이프사이클을 통과해야 합니다:
+
+1. **GitHub Issue 발행**: 작업 시작 전 이슈 생성 (`feat(...)`, `fix(...)`, `refactor(...)` + 인수조건 명시)
+2. **이슈 연동 브랜치 생성**: `main` 직접 작업 금지. 반드시 `<type>/<issue-number>-<slug>` 브랜치 생성
+3. **원자적 커밋(Atomic Commit)**: Conventional Commits 표준 준수 및 이슈 번호 태깅
+4. **Pull Request(PR) 생성**: `.github/pull_request_template.md` 자동 로드 및 `Closes #<issue-number>` 명시
+5. **Squash and Merge**: CI 통과 및 리뷰 승인 후 선형 히스토리로 병합 후 브랜치 삭제
+
+---
+
+## 🧭 에이전트 호환성 구조 (Antigravity & Cursor)
+
 ```text
 ├── GEMINI.md                          # Antigravity 전역 워크스페이스 진입점 및 규칙
 ├── .agents/                           # Antigravity 네이티브 커스터마이징 루트
