@@ -41,16 +41,21 @@ alwaysApply: false
     - Auth Service / IdP signs tokens with Private Key.
     - Downstream services verify tokens with Public Key (via JWKS endpoint or cached public key).
 
-## 3. Gateway Authentication & Token Relay
+## 3. Gateway Authentication & Token Relay (No Redundant Re-verification)
 
 - **Gateway Pre-Authentication**:
   - Spring Cloud Gateway validates the JWT signature, extracts claims, and injects trusted internal headers:
     - `X-User-Id`: Authenticated user UUID.
     - `X-User-Roles`: Comma-separated roles (e.g., `ROLE_USER,ROLE_ADMIN`).
   - Drop any incoming external request attempting to spoof `X-User-*` headers at the Gateway boundary.
-- **Internal Microservice Trust**:
-  - Microservices extract identity from `X-User-*` headers or shared JWT filter.
-  - Reject direct external traffic bypassing the Gateway (network isolation / mTLS).
+- **Internal Microservice Trust (Skip Re-verification)**:
+  - Downstream microservices **trust the injected internal headers** (`X-User-Id`, `X-User-Roles`).
+  - Internal microservices must **NOT** re-verify JWT signatures or query IdP JWKS repeatedly, eliminating redundant CPU/crypto overhead.
+  - Direct external traffic bypassing the Gateway must be blocked (K8s NetworkPolicy / mTLS).
+- **IDOR Defense & No `@PathVariable UUID` for Self-Context**:
+  - Endpoints operating on the caller's own context (e.g., change password, update profile, cancel my order) must **never** take `userId` as a `@PathVariable` (`/api/v1/users/{userId}/password` ❌).
+  - Always extract the user identity directly from `@RequestHeader("X-User-Id")` or a custom `@CurrentUser` / `@AuthenticationPrincipal` resolver (`PATCH /api/v1/accounts/password` ✅).
+  - This prevents Insecure Direct Object Reference (IDOR) attacks where malicious users alter path parameters to modify another user's account.
 
 ## 4. Fine-Grained Authorization (RBAC / ABAC)
 
