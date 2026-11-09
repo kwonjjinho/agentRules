@@ -73,7 +73,42 @@ services:
       - msa-network
 
   # ============================================================================
-  # 4. Backend: Deal Microservice (Spring Boot 3.x, Java 21)
+  # 4. Service Registry: Netflix Eureka Discovery Server (Java 21)
+  # ============================================================================
+  discovery-service:
+    build:
+      context: ./discovery-service
+      dockerfile: Dockerfile
+    container_name: msa-discovery-service
+    ports:
+      - "8761:8761"
+    environment:
+      EUREKA_USERNAME: eureka
+      EUREKA_PASSWORD: eureka1234!
+      EUREKA_HOST: discovery-service
+    networks:
+      - msa-network
+
+  # ============================================================================
+  # 5. API Gateway: Spring Cloud Gateway & JWT Token Relay (Java 21)
+  # ============================================================================
+  gateway-service:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    container_name: msa-gateway-service
+    depends_on:
+      - discovery-service
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_SERVER_URL: http://eureka:eureka1234!@discovery-service:8761/eureka/
+      JWT_SECRET: "EnterpriseGradeSiliconValleySecretKeyMustBeAtLeast256BitsLongForHmacSha256!"
+    networks:
+      - msa-network
+
+  # ============================================================================
+  # 6. Backend: Deal Microservice (Spring Boot 3.x, Java 21)
   # ============================================================================
   deal-service:
     build:
@@ -87,8 +122,10 @@ services:
         condition: service_healthy
       kafka:
         condition: service_started
+      discovery-service:
+        condition: service_started
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/deal_db
       SPRING_DATASOURCE_USERNAME: deal_user
@@ -96,11 +133,12 @@ services:
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:eureka1234!@discovery-service:8761/eureka/
     networks:
       - msa-network
 
   # ============================================================================
-  # 5. Frontend: Next.js 14/15 App Router & BFF
+  # 7. Frontend: Next.js 14/15 App Router & BFF
   # ============================================================================
   frontend:
     build:
@@ -108,11 +146,11 @@ services:
       dockerfile: Dockerfile
     container_name: msa-frontend
     depends_on:
-      - deal-service
+      - gateway-service
     ports:
       - "3000:3000"
     environment:
-      INTERNAL_GATEWAY_URL: http://deal-service:8080
+      INTERNAL_GATEWAY_URL: http://gateway-service:8080
       NODE_ENV: production
     networks:
       - msa-network
