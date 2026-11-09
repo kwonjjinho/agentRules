@@ -1,29 +1,32 @@
 ---
-name: "🐛 Bug Report"
-about: Report a defect, exception, performance degradation, or data inconsistency
-title: "fix(<scope>): <short description>"
+name: "🐛 결함/버그 리포트 (Bug Report)"
+about: 시스템 결함, 런타임 예외, 성능 저하 또는 데이터 불일치 보고
+title: "fix(<scope>): <버그 요약>"
 labels: ["bug", "needs-triage"]
 assignees: []
 ---
 
-## 💥 Bug Summary
-<!-- A clear and concise description of the bug. -->
+## 💥 버그 요약
+<!-- 버그의 현상을 간결하고 명확하게 작성해 주세요. -->
 
-## 🔁 Reproduction Steps
-1. Send request `POST /api/v1/...` with payload:
-2. Observe downstream event on Kafka topic `...`
-3. Check error log / Actuator response:
+---
 
-## 🔍 Expected vs. Actual Behavior
-- **Expected**: 
-- **Actual**: 
+## 🔁 재현 단계
+1. 다음 페이로드로 `POST /api/v1/...` 요청 전송:
+2. Kafka 토픽 `...`에서 비정상 이벤트 수신 확인:
+3. 에러 로그 또는 Actuator 응답 확인:
 
-## 🪵 Diagnostic Evidence & Logs
+---
+
+## 🔍 기대 동작 vs 실제 동작
+- **기대했던 동작**: 
+- **실제 발생한 동작**: 
+
+---
+
+## 🪵 진단 로그 및 증적
 ```text
-<!-- Paste relevant stack trace, JSON structured log with TraceId, or HTTP response -->
+<!-- 스택 트레이스 또는 TraceId가 포함된 JSON 구조화 로그를 붙여넣어 주세요 -->
 ```
-- **Trace ID**: `...`
-- **Environment**: `production` | `staging` | `local-testcontainers`
-
-## 🛠️ Root Cause Hypothesis (Optional)
-<!-- Any preliminary analysis or suspect commits/lines -->
+- **분산 트레이스 ID (TraceId)**: `...`
+- **발생 환경**: `production` | `staging` | `local`

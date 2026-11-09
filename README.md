@@ -1,85 +1,66 @@
-# Enterprise MSA & Fullstack Project Agent Rules
+# 엔터프라이즈 MSA & 풀스택 프로젝트 에이전트 룰스 (Agent Rules)
 
-이 저장소는 실리콘밸리 테크 기업(Big Tech / FAANG) 표준에 맞추어 설계된 **마이크로서비스 아키텍처(MSA) 및 풀스택 개발 규칙 모음**입니다.
+이 저장소는 실리콘밸리 빅테크 기업의 엔지니어링 표준을 기반으로 설계된 **마이크로서비스 아키텍처(MSA) 및 풀스택 개발 규칙 모음**입니다.
 
-Google DeepMind **Antigravity (AGY)** 및 **Cursor** AI 에이전트와 완벽히 호환되도록 구성되어 있습니다.
-
----
-
-## 🧭 에이전트 호환성 구조 (Antigravity & Cursor)
+Google DeepMind **Antigravity (AGY)** 및 **Cursor** AI 에이전트와 완벽히 호환되며, 모든 규칙과 작업 가이드는 **한국어**로 표준화되어 있습니다.
 
 ---
 
-## 🚨 필수 워크플로우: Issue -> Branch -> Commit -> Pull Request (전체 변경사항 의무화)
+## 🚨 필수 엔지니어링 프로세스: 원바이원(One-by-One) 라이프사이클
 
-모든 코드, 설정, 규칙, 문서의 변경사항은 예외 없이 아래 5단계 라이프사이클을 통과해야 합니다:
+모든 요구사항과 변경사항은 하나의 덩어리로 처리하지 않고, 반드시 **세부 기능 단위로 쪼개어 하나씩 순차적으로(One-by-One)** 완료해야 합니다:
 
-1. **GitHub Issue 발행**: 작업 시작 전 이슈 생성 (`feat(...)`, `fix(...)`, `refactor(...)` + 인수조건 명시)
-2. **이슈 연동 브랜치 생성**: `main` 직접 작업 금지. 반드시 `<type>/<issue-number>-<slug>` 브랜치 생성
-3. **원자적 커밋(Atomic Commit)**: Conventional Commits 표준 준수 및 이슈 번호 태깅
-4. **Pull Request(PR) 생성**: `.github/pull_request_template.md` 자동 로드 및 `Closes #<issue-number>` 명시
-5. **Squash and Merge**: CI 통과 및 리뷰 승인 후 선형 히스토리로 병합 후 브랜치 삭제
-
----
-
-## 🧭 에이전트 호환성 구조 (Antigravity & Cursor)
-
-```text
-├── GEMINI.md                          # Antigravity 전역 워크스페이스 진입점 및 규칙
-├── .agents/                           # Antigravity 네이티브 커스터마이징 루트
-│   ├── rules/                         # 모듈별 세부 엔지니어링 가이드라인 (.md)
-│   │   ├── 00-architecture-msa.md
-│   │   ├── 01-spring-boot-java.md
-│   │   ├── 02-spring-security.md
-│   │   ├── 03-nextjs-frontend.md
-│   │   ├── 04-eda-kafka.md
-│   │   ├── 05-redis-caching.md
-│   │   ├── 06-swagger-openapi.md
-│   │   ├── 07-docker-kubernetes.md
-│   │   ├── 08-github-actions-ci-cd.md
-│   │   ├── 09-git-commit-standards.md
-│   │   ├── 10-github-pr-code-review.md
-│   │   └── 11-github-lifecycle-management.md
-│   └── skills/
-│       ├── msa-workflow/SKILL.md      # Antigravity 전용 온디맨드 MSA 개발 스킬
-│       └── github-automation/SKILL.md # GitHub 이슈 생성 및 풀사이클 관리 스킬
-├── .cursor/
-│   └── rules/                         # Cursor 전용 규칙 파일 (.mdc, globs 매핑)
-├── .github/
-│   ├── ISSUE_TEMPLATE/                # GitHub 실무 표준 이슈 템플릿 세트
-│   │   ├── feature_request.md
-│   │   ├── bug_report.md
-│   │   ├── tech_debt.md
-│   │   └── config.yml
-│   └── pull_request_template.md       # GitHub 실무 PR 표준 템플릿
-└── mcp_config.json                    # GitHub MCP Server 설정 파일 (Model Context Protocol)
+```mermaid
+flowchart TD
+    Req["요구사항 수신"] --> Split["기능 단위로 세분화 분할\n(DTO -> Domain -> Service -> Controller -> Frontend)"]
+    Split --> I1["1. 세부 기능단위 Issue 발행 (#id, 한국어)"]
+    I1 --> B1["2. 해당 Issue 전용 브랜치 생성 (feat/<id>-<slug>)"]
+    B1 --> C1["3. 해당 기능만 원자적 구현 & 커밋 (feat(...): ... #<id>)"]
+    C1 --> P1["4. 원격 푸시 & Pull Request 생성 (Closes #<id>)"]
+    P1 --> M1["5. 리뷰 및 Squash & Merge -> main 동기화"]
+    M1 --> Next{"다음 기능 단위 존재 여부"}
+    Next -- 있음 --> I1
+    Next -- 없음 --> Done["전체 요구사항 완료"]
 ```
 
 ---
 
-## 📁 룰 구성 요약
+## 🧭 프로젝트 구조 및 룰 체계
 
-| 규칙 파일 | 핵심 기술 & 엔지니어링 표준 |
-| :--- | :--- |
-| **`00-architecture-msa`** | DDD, Database-per-service, Saga 패턴, Transactional Outbox, Netflix Eureka, OpenTelemetry 분산 트레이싱, Resilience4j |
-| **`01-spring-boot-java`** | Java 21 (Record, Virtual Threads), 헥사고날/클린 아키텍처 계층 분리, RFC 7807 예외 처리, N+1 방지 JPA 규칙 |
-| **`02-spring-security`** | Spring Security 6.x, 완전 무상태(Stateless), JWT 비대칭키(RS256) 검증, Gateway Token Relay & Header 전파 |
-| **`03-nextjs-frontend`** | Next.js App Router, React Server Components (RSC 우선), BFF 패턴, TanStack Query, Zod 런타임 검증, HttpOnly 쿠키 인증 |
-| **`04-eda-kafka`** | CloudEvents 표준 규격, Idempotent Producer/Consumer, Transactional Outbox, Exponential Backoff 및 DLT(Dead Letter Topic) |
-| **`05-redis-caching`** | Cache-Aside 패턴, Thundering Herd 방지(TTL Jitter), Redisson 분산 락(RLock), BigKey 방지 및 JSON 직렬화 |
-| **`06-swagger-openapi`** | Springdoc OpenAPI 3.0, Bearer JWT 글로벌 보안 스키마, HTTP 상태 코드별 응답 명세, DTO `@Schema` 필수화 |
-| **`07-docker-kubernetes`** | Multi-Stage 빌드, Distroless/Non-root 보안, K8s Liveness/Readiness Probes, Requests/Limits 명시, Graceful Shutdown |
-| **`08-github-actions-ci-cd`**| Path-based 워크플로우 분리, Docker Layer Caching(GHA), Trivy 취약점 스캔, GitOps(ArgoCD) 자동 동기화 |
-| **`09-git-commit-standards`** | Conventional Commits 1.0, Atomic Commits(단일 책임 변경), Rebase 기반 선형 히스토리 관리, 브랜치 네이밍 |
-| **`10-github-pr-code-review`** | Google 기준 Small PR 원칙(<400줄), Conventional Comments(blocking/suggestion/nit), PR 템플릿, 머지 정책 |
+```text
+├── GEMINI.md                          # 안티그래비티 전역 워크스페이스 진입점 및 규칙 (한국어)
+├── .agents/                           # 안티그래비티 네이티브 커스터마이징 루트
+│   ├── rules/                         # 모듈별 세부 엔지니어링 가이드라인 (.md)
+│   │   ├── 00-architecture-msa.md     # MSA 아키텍처, DDD, Saga, Eureka, Resilience4j
+│   │   ├── 01-spring-boot-java.md     # Java 21, 헥사고날 아키텍처, Record DTO, JPA
+│   │   ├── 02-spring-security.md      # Stateless JWT, 게이트웨이 인증 신뢰, IDOR 방어
+│   │   ├── 03-nextjs-frontend.md      # Next.js App Router, RSC, BFF, TanStack Query
+│   │   ├── 04-eda-kafka.md            # CloudEvents 규격, Idempotent Consumer, Outbox
+│   │   ├── 05-redis-caching.md        # Cache-Aside, Redisson 분산 락, TTL Jitter
+│   │   ├── 06-swagger-openapi.md      # Springdoc OpenAPI 3.0, Bearer Auth 스키마
+│   │   ├── 07-docker-kubernetes.md    # Multi-stage Distroless, K8s Actuator 프로브
+│   │   ├── 08-github-actions-ci-cd.md # Matrix 빌드, Trivy 컨테이너 보안, GitOps 연동
+│   │   ├── 09-git-commit-standards.md # Conventional Commits, 원바이원 기능단위 커밋
+│   │   ├── 10-github-pr-code-review.md# Small PR 원칙(<400줄), Conventional Comments
+│   │   └── 11-github-lifecycle-management.md # 이슈-브랜치-커밋-PR 풀사이클 관리
+│   └── skills/
+│       ├── msa-workflow/SKILL.md      # 안티그래비티 MSA 기능 구현 온디맨드 스킬
+│       └── github-automation/SKILL.md # GitHub 이슈 생성 및 PR 자동화 스킬
+├── .cursor/
+│   └── rules/                         # Cursor 전용 규칙 파일 (.mdc, globs 매핑)
+├── .github/
+│   ├── ISSUE_TEMPLATE/                # GitHub 실무 표준 이슈 템플릿 (한국어)
+│   │   ├── feature_request.md
+│   │   ├── bug_report.md
+│   │   ├── tech_debt.md
+│   │   └── config.yml
+│   └── pull_request_template.md       # GitHub 실무 PR 표준 템플릿 (한국어)
+└── mcp_config.json                    # GitHub MCP Server 연동 설정
+```
 
 ---
 
-## 🚀 Antigravity 네이티브 기능 지원
-
-1. **`GEMINI.md` 프로젝트 전역 규칙 자동 인덱싱**:
-   - 에이전트가 세션을 시작할 때 워크스페이스의 루트 `GEMINI.md`를 즉시 로드하여 아키텍처 원칙을 준수합니다.
-2. **Progressive Disclosure (`msa-workflow` 스킬)**:
-   - 컨텍스트 윈도우 낭비 없이 필요한 시점에 `.agents/skills/msa-workflow/SKILL.md`를 활성화하여 기능 구현 및 검증 절차를 수행합니다.
-3. **GitHub Pull Request 연동**:
-   - `.github/pull_request_template.md`를 통해 PR 생성 시 실리콘밸리 엔지니어링 체크리스트가 자동 적용됩니다.
+## 🔒 핵심 보안 원칙 요약
+1. **게이트웨이 인증 토큰 신뢰 (중복 재검증 생략)**: 게이트웨이가 외부 JWT를 검증하고 내부 헤더(`X-User-Id`, `X-User-Roles`)를 주입하므로, 내부 서비스에서는 서명 재검증을 생략하여 지연 시간을 최소화합니다.
+2. **IDOR 취약점 원천 차단**: 본인 정보 수정 API에서 URL에 `{userId}` `@PathVariable`을 받지 않고 헤더 식별자만 바인딩합니다.
+3. **비밀번호 변경 시 세션 무효화**: 비밀번호 변경 즉시 Redis에 저장된 Refresh Token 및 캐시 세션을 일괄 삭제하여 기존 기기에서 강제 로그아웃 처리합니다.
