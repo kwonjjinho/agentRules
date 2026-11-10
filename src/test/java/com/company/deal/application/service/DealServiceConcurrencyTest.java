@@ -15,6 +15,7 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -57,6 +58,9 @@ class DealServiceConcurrencyTest {
     @Mock
     private TransactionTemplate transactionTemplate;
 
+    @Mock
+    private DealRealtimeStreamService streamService;
+
     @InjectMocks
     private DealService dealService;
 
@@ -86,10 +90,9 @@ class DealServiceConcurrencyTest {
 
         // TransactionTemplate 동작 시 내부 람다 콜백을 동기 실행하도록 모킹
         lenient().doAnswer(invocation -> {
-            Consumer<TransactionStatus> callback = invocation.getArgument(0);
-            callback.accept(null);
-            return null;
-        }).when(transactionTemplate).executeWithoutResult(any());
+            TransactionCallback<Deal> callback = invocation.getArgument(0);
+            return callback.doInTransaction(null);
+        }).when(transactionTemplate).execute(any());
 
         int totalThreads = 50;
         ExecutorService executorService = Executors.newFixedThreadPool(totalThreads);

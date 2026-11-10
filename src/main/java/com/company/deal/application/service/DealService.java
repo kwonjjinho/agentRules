@@ -46,6 +46,7 @@ public class DealService implements DealCommandUseCase, DealQueryUseCase {
     private final StringRedisTemplate redisTemplate;
     private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
+    private final DealRealtimeStreamService streamService;
 
     @Override
     @Transactional
@@ -64,49 +65,37 @@ public class DealService implements DealCommandUseCase, DealQueryUseCase {
             request.endsAt()
         );
 
-        Deal saved = dealRepository.save(deal);
-        log.info("공동구매 딜 생성 완료: dealId={}, productId={}", dealId, request.productId());
-        return mapToResponse(saved);
+        Deal savedDeal = dealRepository.save(deal);
+        log.info("공동구매 딜 생성 완료: dealId={}, title={}", savedDeal.getId(), savedDeal.getTitle());
+        return mapToResponse(savedDeal);
     }
 
-    @Override
-    @Transactional
-    public void openDeal(String dealId) {
-        Deal deal = findDealById(dealId);
-        deal.open();
-        log.info("공동구매 모집 개시: dealId={}", dealId);
-    }
-
-    /**
-     * 초고동시성 Redisson 분산 락 기반 공구 참여 및 Transactional Outbox 이벤트 저장
-     */
     @Override
     public void joinDeal(String dealId, String userId, JoinDealRequest request) {
         String lockKey = "lock:deal:" + dealId;
         RLock lock = redissonClient.getLock(lockKey);
 
         try {
-            // 최대 3초 대기, 5초 임대 (락 획득 후 트랜잭션 커밋 완료 보장)
-            boolean isLocked = lock.tryLock(3, 5, TimeUnit.SECONDS);
-            if (!isLocked) {
-                log.warn("공구 참여 분산 락 획득 실패 (대기 시간 초과): dealId={}, userId={}", dealId, userId);
+            boolean acquired = lock.tryLock(5, 3, TimeUnit.SECONDS);
+            if (!acquired) {
+                log.warn("분산 락 획득 타임아웃: dealId={}, userId={}", dealId, userId);
                 throw new DealBusinessException(DealErrorCode.LOCK_ACQUISITION_FAILED);
             }
 
+            Deal targetDeal;
             try {
-                // 트랜잭션 범위가 분산 락 내부에서 완전히 커밋되도록 보장
-                transactionTemplate.executeWithoutResult(status -> {
+                targetDeal = transactionTemplate.execute(status -> {
                     Deal deal = findDealById(dealId);
+
+                    // 1. 도메인 비즈니스 불변식 검증 및 재고 차감
                     boolean wasAchievedBefore = deal.isTargetAchieved();
+                    deal.join(userId, request.quantity());
 
-                    // 1. 도메인 수량 차감 및 상태 전이 검증 (불변식 검사)
-                    deal.join(request.quantity());
-
-                    // 2. 참여자 레코드 생성 및 저장
-                    String participantId = "PART-" + UUID.randomUUID().toString().substring(0, 8);
+                    // 2. 참여자 엔티티 생성 및 영속화
+                    String participantId = UUID.randomUUID().toString();
                     DealParticipant participant = new DealParticipant(
                         participantId,
-                        deal.getId(),
+                        deal,
                         userId,
                         request.quantity(),
                         deal.getDealPrice()
@@ -149,10 +138,16 @@ public class DealService implements DealCommandUseCase, DealQueryUseCase {
 
                     log.info("공구 참여 성공: dealId={}, userId={}, qty={}, currentTotal={}/{}",
                         dealId, userId, request.quantity(), deal.getCurrentQuantity(), deal.getMaxCapacity());
+                    return deal;
                 });
 
                 // 5. Redis 캐시 무효화 (실시간 딜 데이터 갱신)
                 evictDealCache(dealId);
+
+                // 6. 실시간 스트림 브로드캐스트 (SSE 및 Redis Pub/Sub)
+                if (targetDeal != null && streamService != null) {
+                    streamService.publishUpdate(targetDeal);
+                }
 
             } finally {
                 // 트랜잭션 커밋 완료 후 안전하게 분산 락 해제
@@ -173,6 +168,9 @@ public class DealService implements DealCommandUseCase, DealQueryUseCase {
         Deal deal = findDealById(dealId);
         deal.close();
         evictDealCache(dealId);
+        if (streamService != null) {
+            streamService.publishUpdate(deal);
+        }
         log.info("공동구매 수동 마감 처리: dealId={}", dealId);
     }
 
