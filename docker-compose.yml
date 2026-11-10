@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # ============================================================================
-  # 1. RDBMS: PostgreSQL 16 (딜 및 Outbox 이벤트 영속성)
+  # 1. RDBMS: PostgreSQL 16 (딜 서비스 DB: deal_db)
   # ============================================================================
   postgres:
     image: postgres:16-alpine
@@ -17,6 +17,28 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U deal_user -d deal_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - msa-network
+
+  # ============================================================================
+  # 1-1. RDBMS: PostgreSQL 16 (결제 서비스 DB: payment_db, Database-per-Service)
+  # ============================================================================
+  payment-postgres:
+    image: postgres:16-alpine
+    container_name: msa-payment-postgres
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: payment_user
+      POSTGRES_PASSWORD: payment_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - payment_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment_user -d payment_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -138,6 +160,32 @@ services:
       - msa-network
 
   # ============================================================================
+  # 6-1. Backend: Payment Microservice (Spring Boot 3.x, Java 21)
+  # ============================================================================
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: msa-payment-service
+    depends_on:
+      payment-postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      discovery-service:
+        condition: service_started
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://payment-postgres:5432/payment_db
+      SPRING_DATASOURCE_USERNAME: payment_user
+      SPRING_DATASOURCE_PASSWORD: payment_password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:eureka1234!@discovery-service:8761/eureka/
+    networks:
+      - msa-network
+
+  # ============================================================================
   # 7. Frontend: Next.js 14/15 App Router & BFF
   # ============================================================================
   frontend:
@@ -161,4 +209,5 @@ networks:
 
 volumes:
   postgres_data:
+  payment_postgres_data:
   redis_data:
