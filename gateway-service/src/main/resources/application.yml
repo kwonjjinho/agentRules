@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: gateway-service
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: ${SPRING_REDIS_PORT:6379}
   cloud:
     gateway:
       routes:
@@ -17,7 +21,9 @@ spring:
               args:
                 whiteListUrls:
                   - "/api/v1/deals"          # deal 목록 조회 (공개 가능)
+                  - "/api/v1/deals/active"   # 활성 deal 목록 조회 (공개 가능)
                   - "/api/v1/deals/{dealId}" # deal 상세 조회 (공개 가능)
+                  - "/api/v1/deals/{dealId}/stream" # 실시간 SSE 스트림 조회
 
         # Payment Service Routes (Requires JWT Authentication & Header Relay)
         - id: payment-service
@@ -35,7 +41,7 @@ spring:
 
 jwt:
   # Minimum 256-bit secret key for HMAC-SHA256 signature verification
-  secret: "EnterpriseGradeSiliconValleySecretKeyMustBeAtLeast256BitsLongForHmacSha256!"
+  secret: ${JWT_SECRET:EnterpriseGradeSiliconValleySecretKeyMustBeAtLeast256BitsLongForHmacSha256!}
 
 eureka:
   client:

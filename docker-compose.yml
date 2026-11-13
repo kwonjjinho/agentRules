@@ -142,10 +142,15 @@ services:
       dockerfile: Dockerfile
     container_name: msa-gateway-service
     depends_on:
-      - discovery-service
+      redis:
+        condition: service_healthy
+      discovery-service:
+        condition: service_started
     ports:
       - "8080:8080"
     environment:
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
       EUREKA_SERVER_URL: http://eureka:eureka1234!@discovery-service:8761/eureka/
       JWT_SECRET: "EnterpriseGradeSiliconValleySecretKeyMustBeAtLeast256BitsLongForHmacSha256!"
     networks:

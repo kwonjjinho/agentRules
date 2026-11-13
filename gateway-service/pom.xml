@@ -41,6 +41,12 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Reactive Redis for JWT Blacklist Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
+
         <!-- JWT Token Validation (JJwt) -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
