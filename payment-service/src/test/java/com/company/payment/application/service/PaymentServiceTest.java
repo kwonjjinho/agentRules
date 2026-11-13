@@ -1,6 +1,8 @@
 package com.company.payment.application.service;
 
 import com.company.payment.adapter.in.web.dto.PaymentResponse;
+import com.company.payment.adapter.out.feign.DealServiceClient;
+import com.company.payment.adapter.out.feign.dto.DealDto;
 import com.company.payment.domain.entity.Payment;
 import com.company.payment.domain.model.PaymentStatus;
 import com.company.payment.domain.repository.PaymentRepository;
@@ -27,11 +29,14 @@ class PaymentServiceTest {
     @Mock
     private PaymentRepository paymentRepository;
 
+    @Mock
+    private DealServiceClient dealServiceClient;
+
     @InjectMocks
     private PaymentService paymentService;
 
     @Test
-    @DisplayName("신규 결제 요청 시 PG사 승인을 획득하고 COMPLETED 상태로 정상 영속화된다")
+    @DisplayName("신규 결제 요청 시 대상 딜이 활성 상태이면 PG사 승인을 획득하고 COMPLETED 상태로 정상 영속화된다")
     void processPayment_Success() {
         // given
         String dealId = "DEAL-100";
@@ -39,6 +44,8 @@ class PaymentServiceTest {
         BigDecimal amount = BigDecimal.valueOf(50000);
         String idempotencyKey = "idemp-unique-001";
 
+        DealDto activeDeal = new DealDto(dealId, "PROD-1", "테스트 딜", amount, "OPEN", 10, 5, false);
+        given(dealServiceClient.getDeal(dealId)).willReturn(activeDeal);
         given(paymentRepository.findByIdempotencyKey(idempotencyKey)).willReturn(Optional.empty());
         given(paymentRepository.save(any(Payment.class))).willAnswer(inv -> inv.getArgument(0));
 
@@ -51,6 +58,23 @@ class PaymentServiceTest {
         assertThat(response.pgTransactionId()).startsWith("PG-");
         assertThat(response.amount()).isEqualByComparingTo(amount);
         verify(paymentRepository).save(any(Payment.class));
+    }
+
+    @Test
+    @DisplayName("취소된 딜(CANCELLED)에 대해 결제 시도 시 예외가 발생하며 결제가 차단된다")
+    void processPayment_CancelledDeal_ThrowsException() {
+        // given
+        String dealId = "DEAL-CANCELLED";
+        DealDto cancelledDeal = new DealDto(dealId, "PROD-1", "취소된 딜", BigDecimal.valueOf(50000), "CANCELLED", 10, 0, false);
+        given(dealServiceClient.getDeal(dealId)).willReturn(cancelledDeal);
+        given(paymentRepository.findByIdempotencyKey(any())).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> paymentService.processPayment(dealId, "USER-1", BigDecimal.valueOf(50000), "idemp-cancel"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("취소된 공동구매 딜에 대해서는 결제할 수 없습니다");
+
+        verify(paymentRepository, never()).save(any(Payment.class));
     }
 
     @Test
