@@ -26,7 +26,15 @@ export async function POST(req: NextRequest) {
     await setAuthCookies(tokens);
 
     return NextResponse.json(
-      { authenticated: true, expiresInSeconds: tokens.expiresInSeconds },
+      {
+        authenticated: true,
+        accessToken: tokens.accessToken,
+        tokenType: tokens.tokenType || 'Bearer',
+        expiresInSeconds: tokens.expiresInSeconds,
+        user: {
+          email: body.email,
+        },
+      },
       { status: 200 }
     );
   } catch (error) {

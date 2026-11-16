@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-export async function GET() {
+export async function GET(req: Request) {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get('accessToken')?.value;
+  let accessToken = cookieStore.get('accessToken')?.value;
+
+  if (!accessToken) {
+    const authHeader = req.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      accessToken = authHeader.substring(7);
+    }
+  }
 
   if (!accessToken) {
     return NextResponse.json(

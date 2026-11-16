@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { setAuth } from '@/lib/auth/storage';
 
 type AuthMode = 'login' | 'register';
 
@@ -40,6 +41,9 @@ export function AuthForm() {
         setMode('login');
         setPassword('');
       } else {
+        if (data.accessToken) {
+          setAuth(data.accessToken, data.user || { email });
+        }
         router.push('/deals');
         router.refresh();
       }

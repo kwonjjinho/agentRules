@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { DealResponse } from '@/lib/types/deal';
 import { DealProgress } from './DealProgress';
+import { getAuthToken } from '@/lib/auth/storage';
 
 interface DealCardProps {
   deal: DealResponse;
@@ -41,9 +42,15 @@ export function DealCard({ deal }: DealCardProps) {
     setSuccessMsg(null);
 
     try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`/api/deals/${deal.id}/join`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ quantity }),
       });
 
