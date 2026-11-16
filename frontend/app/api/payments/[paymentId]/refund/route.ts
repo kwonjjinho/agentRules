@@ -8,7 +8,14 @@ interface RouteContext {
 export async function POST(req: NextRequest, context: RouteContext) {
   const { paymentId } = await context.params;
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get('accessToken')?.value;
+  let accessToken = cookieStore.get('accessToken')?.value;
+
+  if (!accessToken) {
+    const authHeader = req.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      accessToken = authHeader.substring(7);
+    }
+  }
 
   if (!accessToken) {
     return NextResponse.json(

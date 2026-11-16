@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { PaymentResponse, PaymentStatus } from '@/lib/types/payment';
+import { getAuthToken } from '@/lib/auth/storage';
 
 interface PaymentListProps {
   initialPayments: PaymentResponse[];
@@ -29,9 +30,15 @@ export function PaymentList({ initialPayments }: PaymentListProps) {
     setErrorMessage(null);
 
     try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`/api/payments/${selectedPayment.id}/refund`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ reason: refundReason }),
       });
 
