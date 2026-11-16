@@ -153,4 +153,12 @@ public class Deal {
     public boolean isTargetAchieved() {
         return this.currentQuantity >= this.targetQuantity;
     }
+
+    public int getCurrentStock() {
+        return Math.max(0, this.maxCapacity - this.currentQuantity);
+    }
+
+    public int getCurrentParticipants() {
+        return this.currentQuantity;
+    }
 }

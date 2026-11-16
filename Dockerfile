@@ -1,37 +1,25 @@
 # ==============================================================================
-# Build Stage: Java 21 & Maven/Gradle Layer Extraction
+# Build Stage: Java 21 & Maven Compilation
 # ==============================================================================
-FROM eclipse-temurin:21-jdk-jammy AS builder
+FROM maven:3.9.8-eclipse-temurin-21 AS builder
 WORKDIR /workspace
 
-# Dependency cache optimization
 COPY pom.xml ./
-# In a full build: RUN mvn dependency:go-offline -B
+RUN mvn dependency:go-offline -B || true
+
 COPY src ./src
-
-# Create mock/extracted layers for container caching standards
-RUN mkdir -p target/extracted/dependencies && \
-    mkdir -p target/extracted/spring-boot-loader && \
-    mkdir -p target/extracted/snapshot-dependencies && \
-    mkdir -p target/extracted/application
+RUN mvn clean package -DskipTests -B
 
 # ==============================================================================
-# Production Runtime Stage: Google Distroless Java 21 (Non-root security)
+# Production Runtime Stage: Java 21 JRE Jammy
 # ==============================================================================
-FROM gcr.io/distroless/java21-debian12:nonroot
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# Copy layered Spring Boot jar structure
-COPY --from=builder /workspace/target/extracted/dependencies/ ./
-COPY --from=builder /workspace/target/extracted/spring-boot-loader/ ./
-COPY --from=builder /workspace/target/extracted/snapshot-dependencies/ ./
-COPY --from=builder /workspace/target/extracted/application/ ./
+COPY --from=builder /workspace/target/*.jar app.jar
 
-USER nonroot:nonroot
-
-# Production JVM Performance Flags (Container Support & ZGC)
 ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseZGC -Djava.security.egd=file:/dev/./urandom"
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

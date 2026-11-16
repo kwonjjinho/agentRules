@@ -71,6 +71,18 @@ public class DealService implements DealCommandUseCase, DealQueryUseCase {
     }
 
     @Override
+    @Transactional
+    public void openDeal(String dealId) {
+        Deal deal = findDealById(dealId);
+        deal.open();
+        evictDealCache(dealId);
+        if (streamService != null) {
+            streamService.publishUpdate(deal);
+        }
+        log.info("공동구매 모집 개시: dealId={}", dealId);
+    }
+
+    @Override
     public void joinDeal(String dealId, String userId, JoinDealRequest request) {
         String lockKey = "lock:deal:" + dealId;
         RLock lock = redissonClient.getLock(lockKey);
@@ -89,13 +101,13 @@ public class DealService implements DealCommandUseCase, DealQueryUseCase {
 
                     // 1. 도메인 비즈니스 불변식 검증 및 재고 차감
                     boolean wasAchievedBefore = deal.isTargetAchieved();
-                    deal.join(userId, request.quantity());
+                    deal.join(request.quantity());
 
                     // 2. 참여자 엔티티 생성 및 영속화
                     String participantId = UUID.randomUUID().toString();
                     DealParticipant participant = new DealParticipant(
                         participantId,
-                        deal,
+                        deal.getId(),
                         userId,
                         request.quantity(),
                         deal.getDealPrice()
