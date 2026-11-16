@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+  namespace: default
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://auth-postgres:5432/auth_db"
+  SPRING_DATASOURCE_USERNAME: "auth_user"
+  SPRING_REDIS_HOST: "redis"
+  SPRING_REDIS_PORT: "6379"
+  EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: "http://eureka:eureka1234!@discovery-service:8761/eureka/"
+  JWT_SECRET: "EnterpriseGradeSiliconValleySecretKeyMustBeAtLeast256BitsLongForHmacSha256!"
