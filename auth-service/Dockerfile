@@ -1,33 +1,25 @@
 # ==============================================================================
-# Build Stage: Java 21 & Maven Dependency Extraction
+# Build Stage: Java 21 & Maven Compilation
 # ==============================================================================
-FROM eclipse-temurin:21-jdk-jammy AS builder
+FROM maven:3.9.8-eclipse-temurin-21 AS builder
 WORKDIR /workspace
 
 COPY pom.xml ./
+RUN mvn dependency:go-offline -B || true
+
 COPY src ./src
-
-# Create mock/extracted layers for container caching standards
-RUN mkdir -p target/extracted/dependencies && \
-    mkdir -p target/extracted/spring-boot-loader && \
-    mkdir -p target/extracted/snapshot-dependencies && \
-    mkdir -p target/extracted/application
+RUN mvn clean package -DskipTests -B
 
 # ==============================================================================
-# Production Runtime Stage: Google Distroless Java 21 (Non-root security)
+# Production Runtime Stage: Java 21 JRE Jammy
 # ==============================================================================
-FROM gcr.io/distroless/java21-debian12:nonroot
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-COPY --from=builder /workspace/target/extracted/dependencies/ ./
-COPY --from=builder /workspace/target/extracted/spring-boot-loader/ ./
-COPY --from=builder /workspace/target/extracted/snapshot-dependencies/ ./
-COPY --from=builder /workspace/target/extracted/application/ ./
-
-USER nonroot:nonroot
+COPY --from=builder /workspace/target/*.jar app.jar
 
 ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseZGC -Djava.security.egd=file:/dev/./urandom"
 
 EXPOSE 8083
 
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
